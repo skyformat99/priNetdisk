@@ -132,6 +132,7 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 	}
 	else
 	{
+		clientMsg.append("searchClient");
 		clientMsg.append(inet_ntoa(clientAddr.sin_addr));
 		clientMsg.push_back(':');
 		clientMsg.append(std::to_string(clientAddr.sin_port));

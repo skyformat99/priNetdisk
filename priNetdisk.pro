@@ -5,13 +5,11 @@ CONFIG -= qt
 
 SOURCES += main.cpp \
     prinetdisk.cpp \
-    filemanager.cpp \
     nwmanger.cpp \
     session.cpp
 
 HEADERS += \
     prinetdisk.h \
-    filemanager.h \
     nwmanger.h \
     session.h
 
