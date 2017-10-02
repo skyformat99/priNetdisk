@@ -33,6 +33,7 @@ private:
 	/*消息处理函数*/
 	void setClientName(const std::string& clientName , const int &clientSock, std::string &result);
 	void searchClientSocket(const std::string &otherClientName, const int &clientSock, std::string &result);
+	void transFile(const std::string &otherClientName, const int &clientSock, std::string &result);
 	/* END */
 	NWmanger netWork;
 	std::map<int,std::shared_ptr<session>> clientMap;

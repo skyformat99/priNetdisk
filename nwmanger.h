@@ -7,6 +7,8 @@
 #include <sys/epoll.h>
 #include <functional>
 #include <memory>
+#include <future>
+
 #include "session.h"
 
 class NWmanger
@@ -30,10 +32,9 @@ public:
 					   const int &clientSock,
 					   std::string &dealResult)> dealMsg;
 	void doWrite(const int &writeFd);
+	void doTransFile(const std::string filePath , const int &writeFd , std::string& result);
 private:
-	std::map<std::string,int>  clientContain;
-	//std::map<std::string , std::function<void(const int&,const std::string&)>> mFun;
-
+	std::vector<std::future<bool>> asyncTask;
 	std::shared_ptr<priNetdisk> priDiskPtr;
 	int listenSock;
 	const unsigned short listenPort;

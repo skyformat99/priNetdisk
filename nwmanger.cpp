@@ -9,12 +9,27 @@
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
+#include <sys/sendfile.h>
+#include <sys/stat.h>
+
+static off64_t getFileSize(const char* filePath)
+{
+	struct stat fileInfo;
+	bzero(&fileInfo,sizeof( fileInfo));
+	int ret = stat(filePath,&fileInfo);
+	if( ret < 0)
+	{
+		return -1;
+	}
+	return fileInfo.st_size;
+}
 
 NWmanger::NWmanger(const unsigned short &port, const int &epSize):
 	listenPort(port),epollSize(epSize)
 {
 	onInit();
 	events = new epoll_event[EVENTSIZE];
+	bzero(events, sizeof(epoll_event)*EVENTSIZE);
 }
 
 NWmanger::~NWmanger()
@@ -22,6 +37,7 @@ NWmanger::~NWmanger()
 	if( events != nullptr)
 		delete[]  events;
 	close( this->listenSock);
+	close( this->epollFd);
 }
 
 void NWmanger::doWait()
@@ -42,6 +58,8 @@ void NWmanger::onInit()
 
 	int opt = 1;
 	ret = setsockopt(this->listenSock,SOL_SOCKET , SO_REUSEADDR , &opt , sizeof(opt));
+	if(ret)
+		throw  std::runtime_error("set socket failed");
 	ret = setsockopt(this->listenSock,SOL_SOCKET , SO_REUSEPORT , &opt , sizeof(opt));
 	if(ret)
 		throw  std::runtime_error("set socket failed");
@@ -67,8 +85,10 @@ void NWmanger::onInit()
 void NWmanger::epollCtl(int fd, int op, int state)
 {
 	struct epoll_event ev;
+	bzero(&ev,sizeof(ev));
 	ev.events = state ;			//监听读还是写事件
 	ev.data.fd = fd;
+
 	int ret = epoll_ctl(this->epollFd,op,fd,&ev);
 	if( ret < 0)
 		throw std::runtime_error("epollCtl error");
@@ -78,6 +98,15 @@ void NWmanger::epollWait()
 {
 	while(1)
 	{
+		for( auto itor = asyncTask.begin() ; itor!= asyncTask.end() ; itor++)
+		{
+			if((*itor).get())
+			{
+				itor = asyncTask.erase(itor);
+				itor--;
+				std::cout <<"have over" <<std::endl;
+			}
+		}
 		int ret = epoll_wait(this->epollFd, events,EVENTSIZE,-1);
 		handleEvent(ret);
 	}
@@ -143,7 +172,7 @@ void NWmanger::doRead(const int& readFd)
 			pCliSession->msg[haveRead] = '\0';
 			haveRead = 0;
 			std::cout<<  pCliSession->clientSock <<"received  :"
-					 <<  pCliSession->msg <<std::endl;
+					  <<  pCliSession->msg <<std::endl;
 			pCliSession->splitMsg();
 			doWrite(pCliSession->clientSock);
 		}
@@ -197,12 +226,43 @@ void NWmanger::doWrite(const int&writeFd)
 	std::shared_ptr<session> pCliSession = searchSession(writeFd);
 	/* ....  */
 	int ret = send(writeFd,pCliSession->msg,strlen(pCliSession->msg),0);
-	if( errno == EWOULDBLOCK)
+	if(ret <0)
 	{
-		/*....*/
+		if( errno == EWOULDBLOCK)
+		{
+			/*....*/
+		}
 	}
+
 	std::cout << pCliSession->msg <<std::endl;
 
+}
+
+void NWmanger::doTransFile(const std::__cxx11::string filePath, const int &writeFd, std::__cxx11::string &result)
+{
+	off64_t fileSize = getFileSize(filePath.c_str());
+	result.clear();
+	result.append(std::to_string(fileSize));
+	asyncTask.emplace_back(std::async([filePath , writeFd , fileSize]()
+	{
+		int sendFileFd = open(filePath.c_str() , O_RDONLY);
+		if( sendFileFd < 0)
+		{
+			throw std::runtime_error(strerror(errno));
+		}
+		off64_t ret = 0;
+		off64_t haveSend = 0;
+		while( haveSend < fileSize)
+		{
+			ret = sendfile64(writeFd,sendFileFd,NULL,fileSize-haveSend);
+			if( ret < 0)
+				return false;
+			haveSend += ret;
+		}
+		std::cout << haveSend <<std::endl;
+//		sendfile(writeFd,sendFileFd , NULL,fileSize);
+		return true;
+	}) );
 }
 
 

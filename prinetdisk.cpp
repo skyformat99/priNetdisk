@@ -2,7 +2,6 @@
 #include <functional>
 #include <cstring>
 
-
 priNetdisk::priNetdisk(const unsigned short &port,const int &epSize):
 	netWork(port,epSize)
 {
@@ -55,7 +54,12 @@ void priNetdisk::onInit()
 										 std::placeholders::_1 ,
 										 std::placeholders::_2 ,
 										 std::placeholders::_3 ));
+	registerMsgFun("transFile" , std::bind(&priNetdisk::transFile,this,
+										 std::placeholders::_1 ,
+										 std::placeholders::_2 ,
+										 std::placeholders::_3 ));
 }
+
 
 priNetdisk::~priNetdisk()
 {
@@ -132,7 +136,7 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 	}
 	else
 	{
-		clientMsg.append("searchClient");
+		clientMsg.append("searchClient#");
 		clientMsg.append(inet_ntoa(clientAddr.sin_addr));
 		clientMsg.push_back(':');
 		clientMsg.append(std::to_string(clientAddr.sin_port));
@@ -141,4 +145,12 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 	strcpy(clientMap[resultSock]->getMsg() ,clientMsg.c_str());
 	netWork.doWrite(resultSock);
 }
+
+//3.传输文件
+void priNetdisk::transFile(const std::__cxx11::string &filePath, const int &clientSock, std::__cxx11::string &result)
+{
+	netWork.doTransFile(filePath,clientSock,result);
+}
+
+
 /*END*/

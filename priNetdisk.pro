@@ -13,4 +13,4 @@ HEADERS += \
     nwmanger.h \
     session.h
 
-LIBS += -lboost_filesystem -lboost_system
+LIBS += -lboost_filesystem -lboost_system -lpthread
