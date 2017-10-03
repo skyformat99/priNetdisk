@@ -47,7 +47,6 @@ private:
 	int haveRead;
 	int bodyLen;
 	bool headOver;			//标识读取head 是否已经读完
-	//sockaddr_in clientAddr;
 	int clientSock;
 };
 

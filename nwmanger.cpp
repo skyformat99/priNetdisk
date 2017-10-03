@@ -12,6 +12,7 @@
 #include <fcntl.h>
 
 NWmanger::NWmanger(const unsigned short &port, const int &epSize):
+	listenSock(-1),epollFd(-1),
 	listenPort(port),epollSize(epSize)
 {
 	onInit();
@@ -79,8 +80,7 @@ void NWmanger::epollCtl(int fd, int op, int state)
 	int ret = epoll_ctl(this->epollFd,op,fd,&ev);
 	if( ret < 0)
 	{
-		std::cout << strerror(errno) <<std::endl;
-		throw std::runtime_error("epollCtl error");
+		throw std::runtime_error(strerror(errno));
 	}
 }
 
@@ -88,19 +88,27 @@ void NWmanger::epollWait()
 {
 	while(1)
 	{
-		for( auto itor = asyncTask.begin() ; itor!= asyncTask.end() ; itor++)
+		for( auto itor = asyncTask.begin() ; itor!= asyncTask.end() ; /*itor++*/)
 		{
+			if( !(*itor).second.valid())
+			{
+				itor++;
+				continue;
+			}
 			int ret = (*itor).second.get();
 			if( ret == 0)
 			{
 				epollCtl((*itor).first->clientSock,EPOLL_CTL_MOD , EPOLLIN);
-				asyncTask.erase(itor);
+				asyncTask.erase(itor++);
 				std::cout <<"have over" <<std::endl;
 			}
 			else if( ret == EAGAIN)
+			{
 				epollCtl((*itor).first->clientSock,EPOLL_CTL_MOD , EPOLLOUT);
+				++itor;
+			}
 			else
-				asyncTask.erase(itor);
+				asyncTask.erase(itor++);
 		}
 		int ret = epoll_wait(this->epollFd, events,EVENTSIZE,-1);
 		handleEvent(ret);
@@ -250,7 +258,8 @@ void NWmanger::doTransFile(const int &writeFd)
 			{
 				if( errno == EAGAIN )
 					return EAGAIN;
-				return -1;
+				else
+					std::cout << strerror(errno)<<std::endl;
 			}
 			haveSend += ret;
 		}

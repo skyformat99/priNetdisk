@@ -21,14 +21,17 @@ static off64_t getFileSize(const char* filePath)
 	return fileInfo.st_size;
 }
 
-session::session(const int &clientsock ,/* const sockaddr_in &clientaddr ,*/
+session::session(const int &clientsock ,
 				 const std::function<void (const std::string &,
 										   const std::string &,
 										   const int &, std::string &)> &tempDealMsg):
-	clientSock(clientsock)/*,clientAddr(clientaddr)*/,dealMsg(tempDealMsg),SPLCHAR('#')
+	clientSock(clientsock),sendFileFd(-1),
+	headOver(false),
+	haveRead(0),haveSend(0),bodyLen(0),
+	dealMsg(tempDealMsg),
+	SPLCHAR('#')
 {
-	this->headOver = false;
-	this->haveRead = 0;
+	memset(msg,0,MSGBODYLEN);
 }
 session::~session()
 {
