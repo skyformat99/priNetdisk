@@ -147,9 +147,15 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 }
 
 //3.传输文件
-void priNetdisk::transFile(const std::__cxx11::string &filePath, const int &clientSock, std::__cxx11::string &result)
+void priNetdisk::transFile(const std::string &filePath, const int &clientSock, std::string &result)
 {
-	netWork.doTransFile(filePath,clientSock,result);
+	if( clientMap[clientSock]->openFile(filePath) )
+	{
+		result.clear();result.append(std::to_string(clientMap[clientSock]->fileSize));
+		netWork.doTransFile(clientSock);
+	}
+	else
+		result = "openFile failed";
 }
 
 

@@ -5,24 +5,11 @@
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <fcntl.h>
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
 #include <sys/sendfile.h>
-#include <sys/stat.h>
-
-static off64_t getFileSize(const char* filePath)
-{
-	struct stat fileInfo;
-	bzero(&fileInfo,sizeof( fileInfo));
-	int ret = stat(filePath,&fileInfo);
-	if( ret < 0)
-	{
-		return -1;
-	}
-	return fileInfo.st_size;
-}
+#include <fcntl.h>
 
 NWmanger::NWmanger(const unsigned short &port, const int &epSize):
 	listenPort(port),epollSize(epSize)
@@ -91,7 +78,10 @@ void NWmanger::epollCtl(int fd, int op, int state)
 
 	int ret = epoll_ctl(this->epollFd,op,fd,&ev);
 	if( ret < 0)
+	{
+		std::cout << strerror(errno) <<std::endl;
 		throw std::runtime_error("epollCtl error");
+	}
 }
 
 void NWmanger::epollWait()
@@ -100,12 +90,17 @@ void NWmanger::epollWait()
 	{
 		for( auto itor = asyncTask.begin() ; itor!= asyncTask.end() ; itor++)
 		{
-			if((*itor).get())
+			int ret = (*itor).second.get();
+			if( ret == 0)
 			{
-				itor = asyncTask.erase(itor);
-				itor--;
+				epollCtl((*itor).first->clientSock,EPOLL_CTL_MOD , EPOLLIN);
+				asyncTask.erase(itor);
 				std::cout <<"have over" <<std::endl;
 			}
+			else if( ret == EAGAIN)
+				epollCtl((*itor).first->clientSock,EPOLL_CTL_MOD , EPOLLOUT);
+			else
+				asyncTask.erase(itor);
 		}
 		int ret = epoll_wait(this->epollFd, events,EVENTSIZE,-1);
 		handleEvent(ret);
@@ -120,6 +115,8 @@ void NWmanger::handleEvent(const int& num)
 			doAccept();
 		else if(events[i].events & EPOLLIN)
 			doRead(events[i].data.fd);
+		else if( events[i].events & EPOLLOUT)
+			doTransFile(events[i].data.fd);
 	}
 }
 
@@ -216,7 +213,8 @@ void NWmanger::doRead(const int& readFd)
 void NWmanger::deleteSession(const int &clientSock)
 {
 	epollCtl(clientSock,EPOLL_CTL_DEL,EPOLLIN);
-	close(clientSock);
+//	epollCtl(clientSock,EPOLL_CTL_DEL,EPOLLIN|EPOLLOUT);
+//	close(clientSock);
 	DeletCallBack(clientSock);
 }
 
@@ -238,31 +236,29 @@ void NWmanger::doWrite(const int&writeFd)
 
 }
 
-void NWmanger::doTransFile(const std::__cxx11::string filePath, const int &writeFd, std::__cxx11::string &result)
+void NWmanger::doTransFile(const int &writeFd)
 {
-	off64_t fileSize = getFileSize(filePath.c_str());
-	result.clear();
-	result.append(std::to_string(fileSize));
-	asyncTask.emplace_back(std::async([filePath , writeFd , fileSize]()
+	std::shared_ptr<session> clientPtr = searchSession(writeFd);
+	asyncTask[clientPtr] = std::async([clientPtr]()
 	{
-		int sendFileFd = open(filePath.c_str() , O_RDONLY);
-		if( sendFileFd < 0)
-		{
-			throw std::runtime_error(strerror(errno));
-		}
 		off64_t ret = 0;
-		off64_t haveSend = 0;
-		while( haveSend < fileSize)
+		off64_t& haveSend = clientPtr->haveSend;
 		{
-			ret = sendfile64(writeFd,sendFileFd,NULL,fileSize-haveSend);
+			ret = sendfile64(clientPtr->clientSock,clientPtr->sendFileFd,
+							 NULL,clientPtr->fileSize-haveSend);
 			if( ret < 0)
-				return false;
+			{
+				if( errno == EAGAIN )
+					return EAGAIN;
+				return -1;
+			}
 			haveSend += ret;
 		}
-		std::cout << haveSend <<std::endl;
-//		sendfile(writeFd,sendFileFd , NULL,fileSize);
-		return true;
-	}) );
+//		std::cout << haveSend <<std::endl;
+		if( haveSend < clientPtr->fileSize)
+			return EAGAIN;
+		return 0;
+	});
 }
 
 

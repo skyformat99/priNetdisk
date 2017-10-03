@@ -32,9 +32,9 @@ public:
 					   const int &clientSock,
 					   std::string &dealResult)> dealMsg;
 	void doWrite(const int &writeFd);
-	void doTransFile(const std::string filePath , const int &writeFd , std::string& result);
+	void doTransFile(const int &writeFd );
 private:
-	std::vector<std::future<bool>> asyncTask;
+	std::map<std::shared_ptr<session>,std::future<int>> asyncTask;
 	std::shared_ptr<priNetdisk> priDiskPtr;
 	int listenSock;
 	const unsigned short listenPort;
