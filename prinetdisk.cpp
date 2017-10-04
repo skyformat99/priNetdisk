@@ -20,15 +20,17 @@ void priNetdisk::onAccept(const int &clientSock , const std::shared_ptr<session>
 
 void priNetdisk::onDelete(const int &clientSock)
 {
+	if( ! clientMap[clientSock]->clientName.empty() )
+		clientMemu.erase(clientMap[clientSock]->clientName);
+
 	clientMap.erase(clientSock);
+
 }
 
 std::shared_ptr<session> priNetdisk::onSearch(const int &clientSock)
 {
 	return clientMap[clientSock];
 }
-
-
 
 /* 进行回调函数注册 */
 void priNetdisk::onInit()
@@ -59,7 +61,6 @@ void priNetdisk::onInit()
 										 std::placeholders::_2 ,
 										 std::placeholders::_3 ));
 }
-
 
 priNetdisk::~priNetdisk()
 {
@@ -145,7 +146,6 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 	strcpy(clientMap[resultSock]->getMsg() ,clientMsg.c_str());
 	netWork.doWrite(resultSock);
 }
-
 //3.传输文件
 void priNetdisk::transFile(const std::string &filePath, const int &clientSock, std::string &result)
 {
@@ -157,6 +157,5 @@ void priNetdisk::transFile(const std::string &filePath, const int &clientSock, s
 	else
 		result = "openFile failed";
 }
-
 
 /*END*/

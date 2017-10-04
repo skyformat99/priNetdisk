@@ -220,10 +220,8 @@ void NWmanger::doRead(const int& readFd)
 
 void NWmanger::deleteSession(const int &clientSock)
 {
-	epollCtl(clientSock,EPOLL_CTL_DEL,EPOLLIN);
-//	epollCtl(clientSock,EPOLL_CTL_DEL,EPOLLIN|EPOLLOUT);
-//	close(clientSock);
-	DeletCallBack(clientSock);
+	epollCtl(clientSock,EPOLL_CTL_DEL,NULL);
+	DeletCallBack(clientSock);	//释放session
 }
 
 void NWmanger::doWrite(const int&writeFd)
@@ -232,7 +230,7 @@ void NWmanger::doWrite(const int&writeFd)
 	std::shared_ptr<session> pCliSession = searchSession(writeFd);
 	/* ....  */
 	int ret = send(writeFd,pCliSession->msg,strlen(pCliSession->msg),0);
-	if(ret <0)
+	if(ret < 0)
 	{
 		if( errno == EWOULDBLOCK)
 		{
@@ -259,7 +257,10 @@ void NWmanger::doTransFile(const int &writeFd)
 				if( errno == EAGAIN )
 					return EAGAIN;
 				else
+				{
 					std::cout << strerror(errno)<<std::endl;
+					return -1;
+				}
 			}
 			haveSend += ret;
 		}
