@@ -5,8 +5,11 @@
 #include <memory>
 #include <unistd.h>
 #include <functional>
-#include "session.h"
-#include "nwmanger.h"
+//#include "session.h"
+//#include "nwmanger.h"
+
+#include "../NWmanager/nwmanager.h"
+
 
 class priNetdisk
 {
@@ -35,7 +38,7 @@ private:
 	void searchClientSocket(const std::string &otherClientName, const int &clientSock, std::string &result);
 	void transFile(const std::string &otherClientName, const int &clientSock, std::string &result);
 	/* END */
-	NWmanger netWork;
+	NWmanager netWork;
 	std::map<int,std::shared_ptr<session>> clientMap;
 	std::map<std::string , int > clientMemu;
 	std::map<std::string, std::function<void (const std::string&,
