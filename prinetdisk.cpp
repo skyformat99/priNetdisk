@@ -3,14 +3,14 @@
 #include <cstring>
 
 priNetdisk::priNetdisk(const unsigned short &port,const int &epSize):
-	netWork(port,epSize)
+	netWork(),epSize(epSize)
 {
-
+	netWork.bindLocal(port);
 }
 
 void priNetdisk::doLoop()
 {
-	netWork.doWait();
+	netWork.doStart(epSize);
 }
 
 void priNetdisk::onAccept(const int &clientSock , const std::shared_ptr<session> pSession)
@@ -126,7 +126,7 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 	result.erase();
 	result.append(inet_ntoa(otherClientAddr.sin_addr));
 	result.push_back(':');
-	result.append(std::to_string(otherClientAddr.sin_port));
+	result.append(std::to_string(ntohs(otherClientAddr.sin_port)));
 
 	/*给被动客户端发送主动客户端信息*/
 	sockaddr_in  clientAddr;
@@ -140,7 +140,7 @@ void priNetdisk::searchClientSocket(const std::string &otherClientName, const in
 		clientMsg.append("searchClient#");
 		clientMsg.append(inet_ntoa(clientAddr.sin_addr));
 		clientMsg.push_back(':');
-		clientMsg.append(std::to_string(clientAddr.sin_port));
+		clientMsg.append(std::to_string(ntohs(clientAddr.sin_port)));
 	}
 	clientMap[resultSock]->addMsgHead(clientMsg);
 	strcpy(clientMap[resultSock]->getMsg() ,clientMsg.c_str());

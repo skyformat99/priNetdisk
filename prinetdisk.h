@@ -5,8 +5,6 @@
 #include <memory>
 #include <unistd.h>
 #include <functional>
-//#include "session.h"
-//#include "nwmanger.h"
 
 #include "../NWmanager/nwmanager.h"
 
@@ -39,6 +37,7 @@ private:
 	void transFile(const std::string &otherClientName, const int &clientSock, std::string &result);
 	/* END */
 	NWmanager netWork;
+	const int epSize;
 	std::map<int,std::shared_ptr<session>> clientMap;
 	std::map<std::string , int > clientMemu;
 	std::map<std::string, std::function<void (const std::string&,
